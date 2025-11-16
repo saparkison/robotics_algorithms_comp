@@ -1,0 +1,17 @@
+[project]
+dependencies = []
+name = "python_robotics_algorithms"
+requires-python = ">= 3.11"
+version = "0.1.0"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+python_robotics_algorithms = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+scipy = ">=1.16.3,<2"

@@ -1,0 +1,5 @@
+src/python_robotics_algorithms.egg-info/*
+
+# pixi environments
+.pixi/*
+!.pixi/config.toml
