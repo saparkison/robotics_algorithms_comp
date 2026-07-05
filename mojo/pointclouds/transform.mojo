@@ -5,17 +5,20 @@ import benchmark
 from algorithm import parallelize, vectorize
 from complex import ComplexSIMD
 
-alias float_type = DType.float32
-alias simd_width = 2 * simd_width_of[float_type]()
-alias unit = benchmark.Unit.ms
+from algorithm.functional import elementwise
+from gpu.host import DeviceContext, get_gpu_target
+
+comptime float_type = DType.float32
+comptime simd_width = 2 * simd_width_of[float_type]()
+comptime unit = benchmark.Unit.ms
 
 # Homogenos Vector in 3 dimensions (4th element is 1)
-alias Vector3 = SIMD[float_type, 4]
+comptime Vector3 = SIMD[float_type, 4]
 
-alias min_x = -2.0
-alias max_x = 0.6
-alias min_y = -1.5
-alias max_y = 1.5
+comptime min_x = -2.0
+comptime max_x = 0.6
+comptime min_y = -1.5
+comptime max_y = 1.5
 
 @fieldwise_init
 struct Transform3(ImplicitlyCopyable, Movable):
@@ -37,7 +40,7 @@ fn matmul_1darray(A: Transform3, b: Vector3) -> Vector3:
 
     return out
 
-def transform_points(num_points: UInt):
+def transform_points[num_points: Int]():
     print("Benchmark for ", num_points)
     var points = List[Vector3](length=num_points, fill=Vector3(1.0, 1.0, 1.0, 1.0))
     var out = List[Vector3](points)
@@ -57,10 +60,37 @@ def transform_points(num_points: UInt):
     var report = benchmark.run[benchmark_fn]()
     report.print(benchmark.Unit.ms)
 
+
+def transform_points_gpu[num_points: Int](ctx: DeviceContext):
+    print("GPU Benchmark for ", num_points)
+    var points = List[Vector3](length=num_points, fill=Vector3(1.0, 1.0, 1.0, 1.0))
+    var points_device = ctx.enqueue_create_buffer[Vector3](num_points)
+    var out = List[Vector3](points)
+    var out_device = ctx.enqueue_create_buffer[Vector3](num_points)
+
+    var T = Transform3(
+        SIMD[float_type, 4](1.0, 0.0, 0.0, 5.0),
+        SIMD[float_type, 4](0.0, 1.0, 0.0, 7.0),
+        SIMD[float_type, 4](0.0, 0.0, 1.0, 6.0),
+    )
+
+    @always_inline
+    @parameter
+    fn benchmark_fn():
+        for i in range(num_points):
+            out[i] = matmul_1darray(T, points[i])
+
+    var report = benchmark.run[benchmark_fn]()
+    report.print(benchmark.Unit.ms)
+
+
 def main():
-    transform_points(8000)
-    transform_points(16000)
-    transform_points(32000)
+    transform_points[8000]()
+    transform_points[16000]()
+    transform_points[32000]()
+
+    with DeviceContext() as ctx:
+        transform_points_gpu[8000](ctx)
 
 
 
